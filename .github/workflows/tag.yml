@@ -98,14 +98,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          existing_sha="$(
+          if existing_sha="$(
             gh api \
               "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" \
               --jq '.object.sha' \
-              2>/dev/null || true
-          )"
-
-          if [[ -n "$existing_sha" ]]; then
+              2>/dev/null
+          )"; then
             if [[ "$existing_sha" == "$GITHUB_SHA" ]]; then
               echo "Tag $TAG already points to $GITHUB_SHA; nothing to do"
               exit 0
