@@ -11,24 +11,25 @@ image-specific behavior under `images/<tool>/` and reusable orchestration under
 Do not add another CLI image without prior discussion. The project deliberately
 avoids tools that already have a strong official or community image.
 
-## Updating xh
+## Updating an image
 
 Use the update script with a stable upstream release version:
 
 ```sh
+python3 scripts/update.py age 1.3.0
 python3 scripts/update.py xh 0.26.2
 ```
 
-Review the resulting `images/xh/image.toml` diff. Never use placeholder or
-unverified checksums.
+Review the resulting `images/<tool>/image.toml` diff. Never use placeholder
+or unverified checksums.
 
 ## Validation
 
 Before submitting a pull request:
 
-1. Run `python3 scripts/meta.py xh`.
+1. Run `python3 scripts/meta.py <tool>`.
 2. Build both `linux/amd64` and `linux/arm64` images.
-3. Run `images/xh/test.sh <local-image>` for each architecture.
+3. Run `images/<tool>/test.sh <local-image>` for each architecture.
 4. Confirm that no unrelated files or generated artifacts are included.
 
 Pull requests must not publish images. Production publication occurs only from

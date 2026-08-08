@@ -17,9 +17,11 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 ARCHITECTURES = ("amd64", "arm64")
+IMAGE_RE = re.compile(r"[a-z0-9][a-z0-9-]*")
 VERSION_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 SHA256_RE = re.compile(r"sha256:([0-9a-f]{64})")
 UPSTREAM_RE = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
+TARGET_RE = re.compile(r"[A-Za-z0-9_.-]+")
 SECTION_RE = re.compile(r"^\s*\[([^]]+)]\s*(?:#.*)?(?:\r?\n)?$")
 ASSIGNMENT_RE = re.compile(
     r'^(\s*)([A-Za-z0-9_]+)(\s*=\s*)"([^"\r\n]*)"([^\r\n]*)(\r?\n)?$'
@@ -30,15 +32,15 @@ class UpdateError(Exception):
     """An expected release or manifest invariant was not satisfied."""
 
 
-def read_manifest(path: Path) -> dict[str, Any]:
+def read_manifest(path: Path, image: str) -> dict[str, Any]:
     try:
         with path.open("rb") as manifest_file:
             config = tomllib.load(manifest_file)
     except (OSError, tomllib.TOMLDecodeError) as error:
         raise UpdateError(f"cannot read {path}: {error}") from error
 
-    if config.get("name") != "xh":
-        raise UpdateError(f"{path} does not describe the xh image")
+    if config.get("name") != image:
+        raise UpdateError(f"{path} does not describe the {image} image")
 
     upstream = config.get("upstream")
     if not isinstance(upstream, str) or not UPSTREAM_RE.fullmatch(upstream):
@@ -56,7 +58,8 @@ def read_manifest(path: Path) -> dict[str, Any]:
 
     for architecture in ARCHITECTURES:
         platform = platforms.get(architecture)
-        if not isinstance(platform, dict) or not isinstance(platform.get("target"), str):
+        target = platform.get("target") if isinstance(platform, dict) else None
+        if not isinstance(target, str) or TARGET_RE.fullmatch(target) is None:
             raise UpdateError(f"missing target for platform.{architecture} in {path}")
 
     return config
@@ -223,7 +226,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Update a pinned CLI image from a stable upstream release."
     )
-    parser.add_argument("image", help="image name (currently only xh)")
+    parser.add_argument("image", help="image name")
     parser.add_argument("version", help="stable upstream version, without a v prefix")
     return parser.parse_args()
 
@@ -231,13 +234,13 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
 
-    if args.image != "xh":
-        raise UpdateError(f"unsupported image: {args.image}")
+    if IMAGE_RE.fullmatch(args.image) is None:
+        raise UpdateError(f"invalid image name: {args.image}")
     if VERSION_RE.fullmatch(args.version) is None:
         raise UpdateError("version must use the form X.Y.Z without a v prefix")
 
     manifest_path = ROOT / "images" / args.image / "image.toml"
-    config = read_manifest(manifest_path)
+    config = read_manifest(manifest_path, args.image)
     release = fetch_release(config["upstream"], args.version)
     digests = release_digests(release, config, args.version)
     updated = render_manifest(manifest_path, args.version, digests)

@@ -9,13 +9,21 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: upstream-xh
-  cancel-in-progress: false
-
 jobs:
-  xh:
+  image:
+    name: ${{ matrix.image }}
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - age
+          - xh
+
+    concurrency:
+      group: upstream-${{ matrix.image }}
+      cancel-in-progress: false
 
     steps:
       - name: Checkout
@@ -25,23 +33,27 @@ jobs:
 
       - name: Current version
         id: meta
-        run: python3 scripts/meta.py xh
+        run: python3 scripts/meta.py "${{ matrix.image }}"
 
       - name: Check upstream
         id: upstream
         uses: actions/github-script@v9
         env:
           CURRENT_VERSION: ${{ steps.meta.outputs.version }}
+          IMAGE: ${{ matrix.image }}
+          UPSTREAM_REPOSITORY: ${{ steps.meta.outputs.upstream }}
         with:
           script: |
+            const [owner, repo] = process.env.UPSTREAM_REPOSITORY.split("/");
             const { data: release } =
               await github.rest.repos.getLatestRelease({
-                owner: "ducaale",
-                repo: "xh"
+                owner,
+                repo
               });
 
             const upstream = release.tag_name.replace(/^v/, "");
             const current = process.env.CURRENT_VERSION;
+            const image = process.env.IMAGE;
 
             if (!/^\d+\.\d+\.\d+$/.test(upstream)) {
               throw new Error(`Unexpected upstream version: ${upstream}`);
@@ -51,25 +63,28 @@ jobs:
             core.setOutput("update", String(upstream !== current));
 
             if (upstream === current) {
-              console.log(`xh ${current} is current`);
+              console.log(`${image} ${current} is current`);
               return;
             }
 
-            console.log(`xh ${upstream} is available; current version is ${current}`);
+            console.log(
+              `${image} ${upstream} is available; current version is ${current}`
+            );
 
       - name: Update manifest
         if: steps.upstream.outputs.update == 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          IMAGE: ${{ matrix.image }}
           VERSION: ${{ steps.upstream.outputs.version }}
         run: |
           set -euo pipefail
 
-          python3 scripts/update.py xh "$VERSION"
-          python3 scripts/meta.py xh
+          python3 scripts/update.py "$IMAGE" "$VERSION"
+          python3 scripts/meta.py "$IMAGE"
 
           changes="$(git status --short)"
-          if [[ "$changes" != " M images/xh/image.toml" ]]; then
+          if [[ "$changes" != " M images/${IMAGE}/image.toml" ]]; then
             echo "Unexpected update result:"
             printf '%s\n' "$changes"
             exit 1
@@ -94,11 +109,12 @@ jobs:
           BASE_BRANCH: ${{ github.event.repository.default_branch }}
           CURRENT_VERSION: ${{ steps.meta.outputs.version }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          IMAGE: ${{ matrix.image }}
           VERSION: ${{ steps.upstream.outputs.version }}
         run: |
           set -euo pipefail
 
-          branch="automation/xh-v${VERSION}"
+          branch="automation/${IMAGE}-v${VERSION}"
           existing_pr="$(
             gh pr list \
               --repo "$GITHUB_REPOSITORY" \
@@ -120,8 +136,8 @@ jobs:
           git config user.email "${bot_id}+${bot}@users.noreply.github.com"
           gh auth setup-git
           git switch -c "$branch"
-          git add -- images/xh/image.toml
-          git commit -m "Update xh to ${VERSION}"
+          git add -- "images/${IMAGE}/image.toml"
+          git commit -m "Update ${IMAGE} to ${VERSION}"
 
           remote_sha="$(
             git ls-remote --heads origin "refs/heads/${branch}" | cut -f1
@@ -138,7 +154,7 @@ jobs:
 
           body="$(
             printf '%s\n\n' \
-              "Updates xh from ${CURRENT_VERSION} to upstream release v${VERSION}."
+              "Updates ${IMAGE} from ${CURRENT_VERSION} to upstream release v${VERSION}."
             printf '%s\n' \
               "The release asset digests were obtained and verified by scripts/update.py."
           )"
@@ -147,5 +163,5 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --base "$BASE_BRANCH" \
             --head "$branch" \
-            --title "Update xh to ${VERSION}" \
+            --title "Update ${IMAGE} to ${VERSION}" \
             --body "$body"
