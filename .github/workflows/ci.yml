@@ -155,6 +155,8 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.arch }}
 
       - name: Test
+        env:
+          DOCKER_DEFAULT_PLATFORM: linux/${{ matrix.arch }}
         run: images/${{ matrix.image }}/test.sh tiny/${{ matrix.image }}:test
 
   result:
