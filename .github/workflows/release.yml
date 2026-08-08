@@ -6,7 +6,7 @@ on:
       - "*/v*"
 
 permissions:
-  contents: read
+  contents: write
   packages: write
   id-token: write
   attestations: write
@@ -108,6 +108,7 @@ jobs:
           sbom: true
 
       - name: Attest image
+        id: attest
         uses: actions/attest@v4
         with:
           subject-name: ${{ steps.image.outputs.name }}
@@ -134,3 +135,107 @@ jobs:
             echo
             echo "\`${IMAGE}@${DIGEST}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish GitHub release
+        uses: actions/github-script@v9
+        env:
+          TOOL: ${{ steps.meta.outputs.name }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          UPSTREAM: ${{ steps.meta.outputs.upstream }}
+          IMAGE: ${{ steps.image.outputs.name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          ATTESTATION_URL: ${{ steps.attest.outputs.attestation-url }}
+        with:
+          script: |
+            const tag = context.ref.replace("refs/tags/", "");
+            const tool = process.env.TOOL;
+            const version = process.env.VERSION;
+            const upstream = process.env.UPSTREAM;
+            const image = process.env.IMAGE;
+            const digest = process.env.DIGEST;
+            const attestationUrl = process.env.ATTESTATION_URL;
+            const imageTag = `${image}:${version}`;
+            const imageDigest = `${image}@${digest}`;
+            const workflowUrl =
+              `https://github.com/${context.repo.owner}/${context.repo.repo}` +
+              `/actions/runs/${context.runId}`;
+            const upstreamUrl =
+              `https://github.com/${upstream}/releases/tag/v${version}`;
+            const startMarker = "<!-- tiny-cli-images:container:start -->";
+            const endMarker = "<!-- tiny-cli-images:container:end -->";
+            const links = [
+              `[Upstream](${upstreamUrl})`,
+              `[Build](${workflowUrl})`,
+            ];
+            if (attestationUrl) {
+              links.push(`[Attestation](${attestationUrl})`);
+            }
+
+            const details = [
+              startMarker,
+              `Minimal ${tool} v${version} image for \`linux/amd64\` and \`linux/arm64\`.`,
+              "",
+              `**Image:** \`${imageTag}\``,
+              `**Digest:** \`${digest}\``,
+              "",
+              "```sh",
+              `docker run --rm ${imageDigest} --version`,
+              "```",
+              "",
+              links.join(" · "),
+              endMarker,
+            ].join("\n");
+
+            let release = null;
+            try {
+              const response = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag,
+              });
+              release = response.data;
+            } catch (error) {
+              if (error.status !== 404) {
+                throw error;
+              }
+            }
+
+            if (!release) {
+              await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: tag,
+                target_commitish: context.sha,
+                name: `${tool} v${version}`,
+                body: details,
+                draft: false,
+                prerelease: false,
+                make_latest: "false",
+              });
+              return;
+            }
+
+            const currentBody = release.body || "";
+            const start = currentBody.indexOf(startMarker);
+            const end = currentBody.indexOf(endMarker);
+            let body;
+
+            if (start !== -1 && end > start) {
+              body =
+                currentBody.slice(0, start) +
+                details +
+                currentBody.slice(end + endMarker.length);
+            } else {
+              body = [currentBody.trim(), details].filter(Boolean).join("\n\n");
+            }
+
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.id,
+              name: release.name || `${tool} v${version}`,
+              body,
+              draft: false,
+              prerelease: release.prerelease,
+              make_latest: "false",
+            });

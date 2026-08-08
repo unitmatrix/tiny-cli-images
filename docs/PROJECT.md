@@ -142,6 +142,8 @@ The release workflow must:
 4. Publish SBOM and build provenance attestations.
 5. Sign the resulting digest using keyless OIDC signing.
 6. Expose the immutable OCI digest.
+7. Create or update a GitHub Release with the image reference, digest,
+   supported platforms, upstream release link, and supply-chain details.
 
 Release workflows use minimal GitHub Actions permissions. Third-party actions
 should ultimately be pinned to full commit SHAs.

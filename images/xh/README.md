@@ -30,7 +30,7 @@ manager, and its entrypoint is `/xh`.
 
 Each release publishes only its full upstream version tag, such as `0.26.2`.
 The image does not publish `latest` or shortened version tags. For immutable
-deployments, use the digest shown by the release workflow:
+deployments, use the digest shown by the GitHub Release and release workflow:
 
 ```text
 ghcr.io/unitmatrix/xh@sha256:<digest>
