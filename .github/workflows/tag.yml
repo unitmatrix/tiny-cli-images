@@ -51,11 +51,11 @@ jobs:
           if [[ -n "$MANUAL_TAG" ]]; then
             tag="$MANUAL_TAG"
             echo "Using manual tag override: $tag"
-          elif [[ "$subject" =~ ^Update[[:space:]]+([a-z0-9][a-z0-9-]*)[[:space:]]+to[[:space:]]+([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+          elif [[ "$subject" =~ ^Update[[:space:]]+([a-z0-9][a-z0-9-]*)[[:space:]]+to[[:space:]]+([0-9]+\.[0-9]+\.[0-9]+)([[:space:]]+\(#[0-9]+\))?$ ]]; then
             tag="${BASH_REMATCH[1]}/v${BASH_REMATCH[2]}"
             echo "Derived tag from commit subject: $tag"
           else
-            echo "Commit subject does not match 'Update <image> to <version>'; no tag will be created: $subject"
+            echo "Commit subject does not match 'Update <image> to <version> [(#PR)]'; no tag will be created: $subject"
             echo "create=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -98,14 +98,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          existing_sha="$(
+          if existing_sha="$(
             gh api \
               "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" \
               --jq '.object.sha' \
-              2>/dev/null || true
-          )"
-
-          if [[ -n "$existing_sha" ]]; then
+              2>/dev/null
+          )"; then
             if [[ "$existing_sha" == "$GITHUB_SHA" ]]; then
               echo "Tag $TAG already points to $GITHUB_SHA; nothing to do"
               exit 0

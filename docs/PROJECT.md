@@ -141,9 +141,9 @@ Images are released independently from tags in this form:
 <tool>/v<version>
 ```
 
-A push to `main` whose commit subject exactly matches
-`Update <tool> to <version>` creates the corresponding release tag. For
-example:
+A push to `main` whose commit subject matches `Update <tool> to <version>`,
+optionally followed by GitHub's squash-merge suffix ` (#<pull-request>)`,
+creates the corresponding release tag. For example:
 
 <!-- tiny-cli-images:version:age:start -->
 
