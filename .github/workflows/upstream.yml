@@ -1,0 +1,70 @@
+name: Upstream
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  xh:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Current version
+        id: meta
+        run: python3 scripts/meta.py xh
+
+      - name: Check upstream
+        uses: actions/github-script@v9
+        env:
+          CURRENT_VERSION: ${{ steps.meta.outputs.version }}
+        with:
+          script: |
+            const { data: release } =
+              await github.rest.repos.getLatestRelease({
+                owner: "ducaale",
+                repo: "xh"
+              });
+
+            const upstream = release.tag_name.replace(/^v/, "");
+            const current = process.env.CURRENT_VERSION;
+
+            if (upstream === current) {
+              console.log(`xh ${current} is current`);
+              return;
+            }
+
+            const title = `xh ${upstream} available`;
+
+            const existing =
+              await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: "open"
+              });
+
+            if (existing.data.some(issue => issue.title === title)) {
+              console.log("Update issue already exists");
+              return;
+            }
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body:
+                `Current image: ${current}\n` +
+                `Upstream release: ${upstream}\n\n` +
+                `Run:\n\n` +
+                `\`\`\`\n` +
+                `python3 scripts/update.py xh ${upstream}\n` +
+                `\`\`\``
+            });

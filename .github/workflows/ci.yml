@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+    paths:
+      - "images/**"
+      - "scripts/**"
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+
+jobs:
+  xh:
+    name: xh / ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - amd64
+          - arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Read metadata
+        id: meta
+        run: python3 scripts/meta.py xh
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: images/xh/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          tags: tiny/xh:test
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            REVISION=${{ github.sha }}
+            SHA256_AMD64=${{ steps.meta.outputs.sha_amd64 }}
+            SHA256_ARM64=${{ steps.meta.outputs.sha_arm64 }}
+          cache-from: type=gha,scope=xh-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=xh-${{ matrix.arch }}
+
+      - name: Test
+        run: images/xh/test.sh tiny/xh:test

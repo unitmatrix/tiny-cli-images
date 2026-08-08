@@ -1,0 +1,16 @@
+name = "xh"
+description = "Friendly and fast tool for sending HTTP requests"
+version = "0.26.2"
+
+upstream = "ducaale/xh"
+license = "MIT"
+
+architectures = ["amd64", "arm64"]
+
+[platform.amd64]
+target = "x86_64-unknown-linux-musl"
+sha256 = "8c53b6a23435754f9e2ea8ab8c0d0296a1921404b88132cf9b364ff6e8c22a6e"
+
+[platform.arm64]
+target = "aarch64-unknown-linux-musl"
+sha256 = "3a44900a8ac53f614aa0cd1d2e54ecf4e93584384c1ad091aa18d7992686d7eb"
