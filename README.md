@@ -24,19 +24,27 @@ Minimal OCI images for useful command-line tools.
 
 ## age
 
+<!-- tiny-cli-images:version:age:start -->
+
 ```sh
 docker run --rm ghcr.io/unitmatrix/age:1.3.0 --version
 ```
+
+<!-- tiny-cli-images:version:age:end -->
 
 See [the age image documentation](images/age/README.md) for usage and release
 details.
 
 ## xh
 
+<!-- tiny-cli-images:version:xh:start -->
+
 ```sh
 docker run --rm ghcr.io/unitmatrix/xh:0.26.2 \
   https://example.com
 ```
+
+<!-- tiny-cli-images:version:xh:end -->
 
 See [the xh image documentation](images/xh/README.md) for usage and release
 details.

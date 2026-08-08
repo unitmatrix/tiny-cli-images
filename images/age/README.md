@@ -7,6 +7,8 @@ static Linux binaries in a minimal `scratch` runtime.
 
 Encrypt a file for a recipient:
 
+<!-- tiny-cli-images:version:age:start -->
+
 ```sh
 docker run --rm --interactive \
   ghcr.io/unitmatrix/age:1.3.0 \
@@ -45,6 +47,9 @@ docker run --rm \
 ## Pinning
 
 Each release publishes only its full upstream version tag, such as `1.3.0`.
+
+<!-- tiny-cli-images:version:age:end -->
+
 The image does not publish `latest` or shortened version tags. For immutable
 deployments, use the digest shown by the GitHub Release and release workflow:
 
