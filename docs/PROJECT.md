@@ -147,7 +147,7 @@ example:
 
 <!-- tiny-cli-images:version:age:start -->
 
-`Update age to 1.3.0` creates `age/v1.3.0`.
+`Update age to 1.3.1` creates `age/v1.3.1`.
 
 <!-- tiny-cli-images:version:age:end -->
 

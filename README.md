@@ -27,7 +27,7 @@ Minimal OCI images for useful command-line tools.
 <!-- tiny-cli-images:version:age:start -->
 
 ```sh
-docker run --rm ghcr.io/unitmatrix/age:1.3.0 --version
+docker run --rm ghcr.io/unitmatrix/age:1.3.1 --version
 ```
 
 <!-- tiny-cli-images:version:age:end -->
