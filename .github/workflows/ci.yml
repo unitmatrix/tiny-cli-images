@@ -9,18 +9,117 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  changes:
+    name: Detect affected images
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.changes.outputs.images }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Find changed images
+        id: changes
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require("fs");
+            const supported = new Set(
+              fs.readdirSync("images", { withFileTypes: true })
+                .filter(
+                  (entry) =>
+                    entry.isDirectory() &&
+                    fs.existsSync(`images/${entry.name}/image.toml`),
+                )
+                .map((entry) => entry.name),
+            );
+            const affected = new Set();
+            const unknown = new Set();
+            let shared = false;
+
+            if (supported.size === 0) {
+              core.setFailed("No supported images found");
+              return;
+            }
+
+            const files = await github.paginate(
+              github.rest.pulls.listFiles,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                per_page: 100,
+              },
+            );
+
+            const expectedFiles = context.payload.pull_request.changed_files;
+            if (files.length !== expectedFiles) {
+              core.setFailed(
+                `Expected ${expectedFiles} changed files, but GitHub returned ${files.length}`,
+              );
+              return;
+            }
+
+            for (const file of files) {
+              const paths = [file.filename, file.previous_filename]
+                .filter(Boolean);
+
+              for (const path of paths) {
+                if (
+                  path.startsWith("scripts/") ||
+                  path.startsWith(".github/workflows/")
+                ) {
+                  shared = true;
+                }
+
+                const match = path.match(/^images\/([^/]+)\//);
+                if (!match) {
+                  continue;
+                }
+
+                if (supported.has(match[1])) {
+                  affected.add(match[1]);
+                } else {
+                  unknown.add(match[1]);
+                }
+              }
+            }
+
+            if (unknown.size > 0) {
+              core.setFailed(
+                `Unsupported image paths changed: ${[...unknown].sort().join(", ")}`,
+              );
+              return;
+            }
+
+            if (shared) {
+              for (const image of supported) {
+                affected.add(image);
+              }
+            }
+
+            const images = [...affected].sort();
+            if (images.length === 0) {
+              core.setFailed("No affected images found");
+              return;
+            }
+
+            core.info(`Affected images: ${images.join(", ")}`);
+            core.setOutput("images", JSON.stringify(images));
+
   image:
     name: ${{ matrix.image }} / ${{ matrix.arch }}
+    needs: changes
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
-        image:
-          - age
-          - xh
+        image: ${{ fromJSON(needs.changes.outputs.images) }}
         arch:
           - amd64
           - arm64
@@ -57,3 +156,20 @@ jobs:
 
       - name: Test
         run: images/${{ matrix.image }}/test.sh tiny/${{ matrix.image }}:test
+
+  result:
+    name: CI result
+    if: always()
+    needs:
+      - changes
+      - image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify jobs
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          IMAGE_RESULT: ${{ needs.image.result }}
+        run: |
+          test "$CHANGES_RESULT" = success
+          test "$IMAGE_RESULT" = success

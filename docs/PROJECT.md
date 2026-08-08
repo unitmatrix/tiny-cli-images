@@ -123,9 +123,11 @@ needed yet.
 ## Continuous integration
 
 Pull requests that affect images, scripts, or workflows build and exercise each
-image on both `linux/amd64` and `linux/arm64`, using QEMU where necessary.
-Builds verify upstream checksums and run deterministic smoke tests without
-pushing images.
+affected image on both `linux/amd64` and `linux/arm64`, using QEMU where
+necessary. Image-local changes build only that image; changes to shared scripts
+or workflows build every supported image. Builds verify upstream checksums and
+run deterministic smoke tests without pushing images. A stable `CI result` job
+summarizes the dynamically selected image jobs for branch protection.
 
 Smoke tests cover at least `<tool> --version` and `<tool> --help`, plus
 deterministic image-specific behavior. Network integration tests should remain
