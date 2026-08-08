@@ -19,7 +19,17 @@ Minimal OCI images for useful command-line tools.
 
 | Image | amd64 | arm64 | Runtime |
 |---|---|---|---|
+| age | ✓ | ✓ | scratch |
 | xh | ✓ | ✓ | scratch |
+
+## age
+
+```sh
+docker run --rm ghcr.io/unitmatrix/age:1.3.0 --version
+```
+
+See [the age image documentation](images/age/README.md) for usage and release
+details.
 
 ## xh
 

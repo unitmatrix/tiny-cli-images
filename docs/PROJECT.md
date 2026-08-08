@@ -5,10 +5,10 @@
 Tiny Images publishes small, secure OCI images for useful command-line tools
 that do not already have a strong official or established community image.
 
-The first supported tool is `xh`. Do not add another tool without an explicit
-project decision. Common tools whose OCI distribution is already well covered,
-including jq, yq, crane, oras, cosign, kubectl, Helm, and Git, are intentionally
-out of scope.
+The supported tools are `age` and `xh`. Do not add another tool without an
+explicit project decision. Common tools whose OCI distribution is already well
+covered, including jq, yq, crane, oras, cosign, kubectl, Helm, and Git, are
+intentionally out of scope.
 
 ## Repository model
 
@@ -36,6 +36,11 @@ duplication.
 ├── docs/
 │   └── PROJECT.md
 ├── images/
+│   ├── age/
+│   │   ├── image.toml
+│   │   ├── Dockerfile
+│   │   ├── README.md
+│   │   └── test.sh
 │   └── xh/
 │       ├── image.toml
 │       ├── Dockerfile
@@ -92,29 +97,37 @@ ENTRYPOINT=["/xh"]
 
 No shell or package manager belongs in the final image.
 
+## age image
+
+Upstream is [FiloSottile/age](https://github.com/FiloSottile/age). The image
+consumes the upstream static Linux release archives for `amd64` and `arm64`.
+It includes the `age`, `age-keygen`, `age-inspect`, and
+`age-plugin-batchpass` binaries shipped in those archives, with `/age` as the
+entrypoint. The final image uses `scratch` and runs as UID/GID `65532:65532`.
+
 ## Metadata and updates
 
 `scripts/meta.py` reads `images/<tool>/image.toml` and exposes the name,
 version, upstream repository, platform targets, and checksums to GitHub
 Actions.
 
-`scripts/update.py xh <version>` queries the GitHub Releases API, rejects
-missing, draft, or prerelease releases, requires both expected musl artifacts
-and valid SHA-256 digests, and updates only the relevant values in
-`images/xh/image.toml`.
-
-The initial updater may contain xh-specific release knowledge. A complex asset
-template system is intentionally deferred until more images reveal common
-requirements.
+`scripts/update.py <tool> <version>` queries the GitHub Releases API, rejects
+missing, draft, or prerelease releases, requires both expected platform
+artifacts and valid SHA-256 digests, and updates only the relevant values in
+`images/<tool>/image.toml`. Both current upstreams name release archives as
+`<tool>-v<version>-<target>.tar.gz`, so no more general asset-template system is
+needed yet.
 
 ## Continuous integration
 
-Pull requests that affect images, scripts, or workflows build and exercise both
-`linux/amd64` and `linux/arm64`, using QEMU where necessary. Builds verify
-upstream checksums and run deterministic smoke tests without pushing images.
+Pull requests that affect images, scripts, or workflows build and exercise each
+image on both `linux/amd64` and `linux/arm64`, using QEMU where necessary.
+Builds verify upstream checksums and run deterministic smoke tests without
+pushing images.
 
-Smoke tests cover at least `xh --version` and `xh --help`. Network integration
-tests should remain separate where practical.
+Smoke tests cover at least `<tool> --version` and `<tool> --help`, plus
+deterministic image-specific behavior. Network integration tests should remain
+separate where practical.
 
 ## Releases
 
@@ -150,8 +163,8 @@ should ultimately be pinned to full commit SHAs.
 
 ## Upstream detection
 
-The scheduled upstream workflow detects new stable xh releases but never
-publishes them directly. The intended flow is:
+The scheduled upstream workflow detects new stable releases for every supported
+image but never publishes them directly. The intended flow is:
 
 ```text
 upstream release

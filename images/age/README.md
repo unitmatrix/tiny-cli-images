@@ -1,0 +1,56 @@
+# age OCI image
+
+This image packages the upstream [FiloSottile/age](https://github.com/FiloSottile/age)
+static Linux binaries in a minimal `scratch` runtime.
+
+## Usage
+
+Encrypt a file for a recipient:
+
+```sh
+docker run --rm --interactive \
+  ghcr.io/unitmatrix/age:1.3.0 \
+  --encrypt \
+  --recipient age1... \
+  < document.txt \
+  > document.txt.age
+```
+
+Decrypt with an identity mounted under `/work`:
+
+```sh
+docker run --rm --interactive \
+  --volume "$PWD:/work:ro" \
+  ghcr.io/unitmatrix/age:1.3.0 \
+  --decrypt \
+  --identity /work/key.txt \
+  < document.txt.age
+```
+
+The image runs as UID/GID `65532:65532`. Its entrypoint is `/age`; the
+upstream `age-keygen`, `age-inspect`, and `age-plugin-batchpass` companion
+binaries are also available at the filesystem root. For example:
+
+```sh
+docker run --rm \
+  --entrypoint /age-keygen \
+  ghcr.io/unitmatrix/age:1.3.0
+```
+
+## Platforms
+
+- `linux/amd64`
+- `linux/arm64`
+
+## Pinning
+
+Each release publishes only its full upstream version tag, such as `1.3.0`.
+The image does not publish `latest` or shortened version tags. For immutable
+deployments, use the digest shown by the GitHub Release and release workflow:
+
+```text
+ghcr.io/unitmatrix/age@sha256:<digest>
+```
+
+The upstream version and verified artifact checksums are committed in
+[`image.toml`](image.toml).
