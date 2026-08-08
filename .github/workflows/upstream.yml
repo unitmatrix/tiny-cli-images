@@ -8,7 +8,10 @@ on:
 
 permissions:
   contents: read
-  issues: write
+
+concurrency:
+  group: upstream-xh
+  cancel-in-progress: false
 
 jobs:
   xh:
@@ -17,12 +20,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Current version
         id: meta
         run: python3 scripts/meta.py xh
 
       - name: Check upstream
+        id: upstream
         uses: actions/github-script@v9
         env:
           CURRENT_VERSION: ${{ steps.meta.outputs.version }}
@@ -37,34 +43,109 @@ jobs:
             const upstream = release.tag_name.replace(/^v/, "");
             const current = process.env.CURRENT_VERSION;
 
+            if (!/^\d+\.\d+\.\d+$/.test(upstream)) {
+              throw new Error(`Unexpected upstream version: ${upstream}`);
+            }
+
+            core.setOutput("version", upstream);
+            core.setOutput("update", String(upstream !== current));
+
             if (upstream === current) {
               console.log(`xh ${current} is current`);
               return;
             }
 
-            const title = `xh ${upstream} available`;
+            console.log(`xh ${upstream} is available; current version is ${current}`);
 
-            const existing =
-              await github.rest.issues.listForRepo({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                state: "open"
-              });
+      - name: Update manifest
+        if: steps.upstream.outputs.update == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.upstream.outputs.version }}
+        run: |
+          set -euo pipefail
 
-            if (existing.data.some(issue => issue.title === title)) {
-              console.log("Update issue already exists");
-              return;
-            }
+          python3 scripts/update.py xh "$VERSION"
+          python3 scripts/meta.py xh
 
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title,
-              body:
-                `Current image: ${current}\n` +
-                `Upstream release: ${upstream}\n\n` +
-                `Run:\n\n` +
-                `\`\`\`\n` +
-                `python3 scripts/update.py xh ${upstream}\n` +
-                `\`\`\``
-            });
+          changes="$(git status --short)"
+          if [[ "$changes" != " M images/xh/image.toml" ]]; then
+            echo "Unexpected update result:"
+            printf '%s\n' "$changes"
+            exit 1
+          fi
+
+          git diff --check
+
+      - name: Generate GitHub App token
+        if: steps.upstream.outputs.update == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Create pull request
+        if: steps.upstream.outputs.update == 'true'
+        env:
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+          CURRENT_VERSION: ${{ steps.meta.outputs.version }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ steps.upstream.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          branch="automation/xh-v${VERSION}"
+          existing_pr="$(
+            gh pr list \
+              --repo "$GITHUB_REPOSITORY" \
+              --head "$branch" \
+              --state open \
+              --json url \
+              --jq '.[0].url // ""'
+          )"
+
+          if [[ -n "$existing_pr" ]]; then
+            echo "Update pull request already exists: $existing_pr"
+            exit 0
+          fi
+
+          bot="${APP_SLUG}[bot]"
+          bot_id="$(gh api "/users/${bot}" --jq .id)"
+
+          git config user.name "$bot"
+          git config user.email "${bot_id}+${bot}@users.noreply.github.com"
+          gh auth setup-git
+          git switch -c "$branch"
+          git add -- images/xh/image.toml
+          git commit -m "Update xh to ${VERSION}"
+
+          remote_sha="$(
+            git ls-remote --heads origin "refs/heads/${branch}" | cut -f1
+          )"
+
+          if [[ -n "$remote_sha" ]]; then
+            git push \
+              --force-with-lease="refs/heads/${branch}:${remote_sha}" \
+              origin \
+              "HEAD:refs/heads/${branch}"
+          else
+            git push origin "HEAD:refs/heads/${branch}"
+          fi
+
+          body="$(
+            printf '%s\n\n' \
+              "Updates xh from ${CURRENT_VERSION} to upstream release v${VERSION}."
+            printf '%s\n' \
+              "The release asset digests were obtained and verified by scripts/update.py."
+          )"
+
+          gh pr create \
+            --repo "$GITHUB_REPOSITORY" \
+            --base "$BASE_BRANCH" \
+            --head "$branch" \
+            --title "Update xh to ${VERSION}" \
+            --body "$body"
