@@ -141,6 +141,21 @@ Images are released independently from tags in this form:
 <tool>/v<version>
 ```
 
+A push to `main` whose commit subject exactly matches
+`Update <tool> to <version>` creates the corresponding release tag. For
+example:
+
+<!-- tiny-cli-images:version:age:start -->
+
+`Update age to 1.3.0` creates `age/v1.3.0`.
+
+<!-- tiny-cli-images:version:age:end -->
+
+Other commit subjects do not create a tag. The Tag workflow can also be
+dispatched manually from the default branch with an explicit tag override;
+both automatic and manual tags must match an existing image and its committed
+manifest version. Existing tags are never moved.
+
 <!-- tiny-cli-images:version:xh:start -->
 
 For example, `xh/v0.26.2` publishes:

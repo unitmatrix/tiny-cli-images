@@ -1,0 +1,125 @@
+name: Tag
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to create, for example age/v1.3.1
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: Create release tag
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Resolve tag
+        id: tag
+        shell: bash
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          EVENT_NAME: ${{ github.event_name }}
+          MANUAL_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == workflow_dispatch && "$REF_NAME" != "$DEFAULT_BRANCH" ]]; then
+            echo "Manual tags must target the default branch: $DEFAULT_BRANCH" >&2
+            exit 1
+          fi
+
+          subject="$(git log -1 --format=%s)"
+
+          if [[ -n "$MANUAL_TAG" ]]; then
+            tag="$MANUAL_TAG"
+            echo "Using manual tag override: $tag"
+          elif [[ "$subject" =~ ^Update[[:space:]]+([a-z0-9][a-z0-9-]*)[[:space:]]+to[[:space:]]+([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            tag="${BASH_REMATCH[1]}/v${BASH_REMATCH[2]}"
+            echo "Derived tag from commit subject: $tag"
+          else
+            echo "Commit subject does not match 'Update <image> to <version>'; no tag will be created: $subject"
+            echo "create=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ ! "$tag" =~ ^([a-z0-9][a-z0-9-]*)/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "Invalid release tag: $tag" >&2
+            echo "Expected format: <image>/v<major>.<minor>.<patch>" >&2
+            exit 1
+          fi
+
+          image="${BASH_REMATCH[1]}"
+          version="${BASH_REMATCH[2]}"
+          manifest_version="$(
+            env -u GITHUB_OUTPUT python3 scripts/meta.py "$image" |
+              sed -n 's/^version=//p'
+          )"
+
+          if [[ "$version" != "$manifest_version" ]]; then
+            echo "Tag version $version does not match $image manifest version $manifest_version" >&2
+            exit 1
+          fi
+
+          echo "create=true" >> "$GITHUB_OUTPUT"
+          echo "name=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Generate GitHub App token
+        if: steps.tag.outputs.create == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Create tag
+        if: steps.tag.outputs.create == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG: ${{ steps.tag.outputs.name }}
+        run: |
+          set -euo pipefail
+
+          existing_sha="$(
+            gh api \
+              "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" \
+              --jq '.object.sha' \
+              2>/dev/null || true
+          )"
+
+          if [[ -n "$existing_sha" ]]; then
+            if [[ "$existing_sha" == "$GITHUB_SHA" ]]; then
+              echo "Tag $TAG already points to $GITHUB_SHA; nothing to do"
+              exit 0
+            fi
+
+            echo "Tag $TAG already exists at $existing_sha; refusing to move it" >&2
+            exit 1
+          fi
+
+          gh api \
+            --method POST \
+            "repos/${GITHUB_REPOSITORY}/git/refs" \
+            -f "ref=refs/tags/${TAG}" \
+            -f "sha=${GITHUB_SHA}" \
+            > /dev/null
+
+          echo "Created tag $TAG at $GITHUB_SHA"
