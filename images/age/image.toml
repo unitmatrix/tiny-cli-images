@@ -1,6 +1,6 @@
 name = "age"
 description = "Simple, modern, and secure file encryption"
-version = "1.3.0"
+version = "1.3.1"
 
 upstream = "FiloSottile/age"
 license = "BSD-3-Clause"
@@ -9,8 +9,8 @@ architectures = ["amd64", "arm64"]
 
 [platform.amd64]
 target = "linux-amd64"
-sha256 = "2635f17e469b8c829055151dcbf77effe1fbefe182cb7b308aee5d0e5d923aae"
+sha256 = "bdc69c09cbdd6cf8b1f333d372a1f58247b3a33146406333e30c0f26e8f51377"
 
 [platform.arm64]
 target = "linux-arm64"
-sha256 = "5c78a4de6aa89e86045e4c05fec5773f3c419a5c209cd7cb381fec0f5e8fa936"
+sha256 = "c6878a324421b69e3e20b00ba17c04bc5c6dab0030cfe55bf8f68fa8d9e9093a"
