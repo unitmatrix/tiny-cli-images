@@ -5,6 +5,8 @@ Linux musl binary in a minimal `scratch` runtime.
 
 ## Usage
 
+<!-- tiny-cli-images:version:xh:start -->
+
 ```sh
 docker run --rm ghcr.io/unitmatrix/xh:0.26.2 https://example.com
 ```
@@ -29,6 +31,9 @@ manager, and its entrypoint is `/xh`.
 ## Pinning
 
 Each release publishes only its full upstream version tag, such as `0.26.2`.
+
+<!-- tiny-cli-images:version:xh:end -->
+
 The image does not publish `latest` or shortened version tags. For immutable
 deployments, use the digest shown by the GitHub Release and release workflow:
 

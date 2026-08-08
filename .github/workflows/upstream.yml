@@ -83,10 +83,25 @@ jobs:
           python3 scripts/update.py "$IMAGE" "$VERSION"
           python3 scripts/meta.py "$IMAGE"
 
-          changes="$(git status --short)"
-          if [[ "$changes" != " M images/${IMAGE}/image.toml" ]]; then
-            echo "Unexpected update result:"
-            printf '%s\n' "$changes"
+          manifest="images/${IMAGE}/image.toml"
+          manifest_changed=false
+
+          while IFS= read -r changed_file; do
+            case "$changed_file" in
+              "$manifest")
+                manifest_changed=true
+                ;;
+              README.md|CONTRIBUTING.md|docs/*.md|images/"$IMAGE"/*.md)
+                ;;
+              *)
+                echo "Unexpected updated file: $changed_file" >&2
+                exit 1
+                ;;
+            esac
+          done < <(git diff --name-only)
+
+          if [[ "$manifest_changed" != true ]]; then
+            echo "Manifest was not updated: $manifest" >&2
             exit 1
           fi
 
@@ -136,7 +151,7 @@ jobs:
           git config user.email "${bot_id}+${bot}@users.noreply.github.com"
           gh auth setup-git
           git switch -c "$branch"
-          git add -- "images/${IMAGE}/image.toml"
+          git add --update
           git commit -m "Update ${IMAGE} to ${VERSION}"
 
           remote_sha="$(
@@ -156,7 +171,7 @@ jobs:
             printf '%s\n\n' \
               "Updates ${IMAGE} from ${CURRENT_VERSION} to upstream release v${VERSION}."
             printf '%s\n' \
-              "The release asset digests were obtained and verified by scripts/update.py."
+              "The release asset digests were verified and versioned documentation was refreshed by scripts/update.py."
           )"
 
           gh pr create \

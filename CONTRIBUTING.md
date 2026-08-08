@@ -15,13 +15,26 @@ avoids tools that already have a strong official or community image.
 
 Use the update script with a stable upstream release version:
 
+<!-- tiny-cli-images:version:age:start -->
+
 ```sh
 python3 scripts/update.py age 1.3.0
+```
+
+<!-- tiny-cli-images:version:age:end -->
+
+<!-- tiny-cli-images:version:xh:start -->
+
+```sh
 python3 scripts/update.py xh 0.26.2
 ```
 
-Review the resulting `images/<tool>/image.toml` diff. Never use placeholder
-or unverified checksums.
+<!-- tiny-cli-images:version:xh:end -->
+
+Review the resulting manifest and documentation diffs. The updater changes the
+version and digests in `images/<tool>/image.toml`, then refreshes Markdown
+blocks identified by invisible `tiny-cli-images:version` comments. Never use
+placeholder or unverified checksums.
 
 ## Validation
 

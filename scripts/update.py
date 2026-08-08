@@ -42,6 +42,10 @@ def read_manifest(path: Path, image: str) -> dict[str, Any]:
     if config.get("name") != image:
         raise UpdateError(f"{path} does not describe the {image} image")
 
+    version = config.get("version")
+    if not isinstance(version, str) or VERSION_RE.fullmatch(version) is None:
+        raise UpdateError(f"invalid current version in {path}")
+
     upstream = config.get("upstream")
     if not isinstance(upstream, str) or not UPSTREAM_RE.fullmatch(upstream):
         raise UpdateError(f"invalid upstream repository in {path}")
@@ -200,6 +204,83 @@ def render_manifest(path: Path, version: str, digests: dict[str, str]) -> str:
     return "".join(output)
 
 
+def documentation_paths(image: str) -> list[Path]:
+    paths = {
+        ROOT / "README.md",
+        ROOT / "CONTRIBUTING.md",
+        *(ROOT / "docs").rglob("*.md"),
+        *(ROOT / "images" / image).rglob("*.md"),
+    }
+    return sorted(paths)
+
+
+def render_documentation(image: str, version: str) -> dict[Path, str]:
+    image_readme = ROOT / "images" / image / "README.md"
+    start_marker = f"<!-- tiny-cli-images:version:{image}:start -->"
+    end_marker = f"<!-- tiny-cli-images:version:{image}:end -->"
+    version_pattern = re.compile(r"(?<![0-9.])[0-9]+\.[0-9]+\.[0-9]+(?![0-9.])")
+    updates: dict[Path, str] = {}
+    marked_paths: set[Path] = set()
+
+    for path in documentation_paths(image):
+        try:
+            current = path.read_text(encoding="utf-8")
+        except OSError as error:
+            raise UpdateError(f"cannot read {path}: {error}") from error
+
+        if current.count(start_marker) != current.count(end_marker):
+            raise UpdateError(f"unbalanced {image} version markers in {path}")
+
+        position = 0
+        output: list[str] = []
+        blocks = 0
+
+        while True:
+            start = current.find(start_marker, position)
+            if start == -1:
+                output.append(current[position:])
+                break
+
+            content_start = start + len(start_marker)
+            end = current.find(end_marker, content_start)
+            nested_start = current.find(start_marker, content_start, end)
+
+            if end == -1 or nested_start != -1:
+                raise UpdateError(f"malformed {image} version markers in {path}")
+
+            content = current[content_start:end]
+            rendered_content, replacements = version_pattern.subn(version, content)
+            if replacements == 0:
+                raise UpdateError(
+                    f"version marker for {image} contains no version in {path}"
+                )
+
+            output.extend(
+                (
+                    current[position:content_start],
+                    rendered_content,
+                    end_marker,
+                )
+            )
+            position = end + len(end_marker)
+            blocks += 1
+
+        if blocks == 0:
+            continue
+
+        marked_paths.add(path)
+        rendered = "".join(output)
+        if rendered != current:
+            updates[path] = rendered
+
+    if image_readme not in marked_paths:
+        raise UpdateError(
+            f"{image_readme} contains no version marker for {image}"
+        )
+
+    return updates
+
+
 def write_atomic(path: Path, content: str) -> None:
     try:
         mode = stat.S_IMODE(path.stat().st_mode)
@@ -245,13 +326,21 @@ def main() -> int:
     digests = release_digests(release, config, args.version)
     updated = render_manifest(manifest_path, args.version, digests)
     current = manifest_path.read_text(encoding="utf-8")
+    documentation: dict[Path, str] = {}
 
-    if updated == current:
+    if config["version"] != args.version:
+        documentation = render_documentation(args.image, args.version)
+
+    if updated == current and not documentation:
         print(f"{args.image} {args.version} is already pinned")
         return 0
 
-    write_atomic(manifest_path, updated)
-    print(f"updated {manifest_path.relative_to(ROOT)} to {args.version}")
+    if updated != current:
+        write_atomic(manifest_path, updated)
+        print(f"updated {manifest_path.relative_to(ROOT)} to {args.version}")
+    for path, content in documentation.items():
+        write_atomic(path, content)
+        print(f"updated {path.relative_to(ROOT)} to {args.version}")
     for architecture in ARCHITECTURES:
         print(f"{architecture}: {digests[architecture]}")
     return 0

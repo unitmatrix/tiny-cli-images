@@ -113,8 +113,10 @@ Actions.
 
 `scripts/update.py <tool> <version>` queries the GitHub Releases API, rejects
 missing, draft, or prerelease releases, requires both expected platform
-artifacts and valid SHA-256 digests, and updates only the relevant values in
-`images/<tool>/image.toml`. Both current upstreams name release archives as
+artifacts and valid SHA-256 digests, and updates the relevant values in
+`images/<tool>/image.toml`. When the version changes, it also rewrites semantic
+versions inside invisible `tiny-cli-images:version:<tool>` Markdown comment
+blocks. Both current upstreams name release archives as
 `<tool>-v<version>-<target>.tar.gz`, so no more general asset-template system is
 needed yet.
 
@@ -137,11 +139,15 @@ Images are released independently from tags in this form:
 <tool>/v<version>
 ```
 
+<!-- tiny-cli-images:version:xh:start -->
+
 For example, `xh/v0.26.2` publishes:
 
 ```text
 ghcr.io/<owner>/xh:0.26.2
 ```
+
+<!-- tiny-cli-images:version:xh:end -->
 
 Only the full upstream version tag is published. Floating tags such as
 `latest` and shortened version tags such as `0.26` are not published. Users can
