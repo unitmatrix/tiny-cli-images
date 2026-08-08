@@ -8,3 +8,12 @@ updates:
     labels:
       - dependencies
       - github-actions
+
+  - package-ecosystem: docker
+    directories:
+      - /images/**/*
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - docker
