@@ -1,7 +1,9 @@
-# age OCI image
+# age Docker and OCI container image
 
-This image packages the upstream [FiloSottile/age](https://github.com/FiloSottile/age)
-static Linux binaries in a minimal `scratch` runtime.
+Minimal, non-root, multi-architecture container image for
+[age](https://github.com/FiloSottile/age), a simple, modern, and secure file
+encryption tool. The image packages the upstream static Linux binaries in a
+`scratch` runtime and is published as `ghcr.io/unitmatrix/age`.
 
 ## Usage
 

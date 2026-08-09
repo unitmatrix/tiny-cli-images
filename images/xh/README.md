@@ -1,7 +1,9 @@
-# xh OCI image
+# xh Docker and OCI container image
 
-This image packages the upstream [ducaale/xh](https://github.com/ducaale/xh)
-Linux musl binary in a minimal `scratch` runtime.
+Minimal, non-root, multi-architecture container image for
+[xh](https://github.com/ducaale/xh), a friendly and fast HTTP client. The image
+packages the upstream Linux musl binary in a `scratch` runtime with CA
+certificates and is published as `ghcr.io/unitmatrix/xh`.
 
 ## Usage
 

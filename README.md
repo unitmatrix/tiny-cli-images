@@ -1,6 +1,9 @@
-# Tiny Images
+# Tiny CLI Images — Minimal Docker and OCI Images
 
-Minimal OCI images for useful command-line tools.
+Minimal, secure, multi-architecture Docker and OCI container images for useful
+command-line tools. Images are published to GitHub Container Registry (GHCR)
+for `linux/amd64` and `linux/arm64`. Release images run as non-root, include
+SBOM and provenance attestations, and are signed with Sigstore.
 
 ## Principles
 
@@ -15,14 +18,17 @@ Minimal OCI images for useful command-line tools.
 - Immutable version tags
 - No unnecessary shell or package manager
 
-## Images
+## Container image catalog
 
-| Image | amd64 | arm64 | Runtime |
-|---|---|---|---|
-| age | ✓ | ✓ | scratch |
-| xh | ✓ | ✓ | scratch |
+| Tool | Container image | Purpose | Platforms | Runtime |
+|---|---|---|---|---|
+| [age](images/age/README.md) | `ghcr.io/unitmatrix/age` | File encryption | amd64, arm64 | scratch |
+| [xh](images/xh/README.md) | `ghcr.io/unitmatrix/xh` | HTTP client | amd64, arm64 | scratch |
 
-## age
+## age encryption container image
+
+The age image packages the [age encryption tool](https://github.com/FiloSottile/age)
+in a minimal, non-root container without a shell or package manager.
 
 <!-- tiny-cli-images:version:age:start -->
 
@@ -35,7 +41,10 @@ docker run --rm ghcr.io/unitmatrix/age:1.3.1 --version
 See [the age image documentation](images/age/README.md) for usage and release
 details.
 
-## xh
+## xh HTTP client container image
+
+The xh image packages the [xh HTTP client](https://github.com/ducaale/xh) in a
+minimal, non-root container with CA certificates for HTTPS requests.
 
 <!-- tiny-cli-images:version:xh:start -->
 

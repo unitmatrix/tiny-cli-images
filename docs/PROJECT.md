@@ -108,8 +108,10 @@ entrypoint. The final image uses `scratch` and runs as UID/GID `65532:65532`.
 ## Metadata and updates
 
 `scripts/meta.py` reads `images/<tool>/image.toml` and exposes the name,
-version, upstream repository, platform targets, and checksums to GitHub
-Actions.
+description, version, upstream repository, license, platform targets, and
+checksums to GitHub Actions. Release builds publish this metadata as OCI labels
+and as manifest and image-index annotations so multi-architecture GHCR package
+pages display the image description and link back to this repository.
 
 `scripts/update.py <tool> <version>` queries the GitHub Releases API, rejects
 missing, draft, or prerelease releases, requires both expected platform

@@ -1,5 +1,5 @@
 name = "xh"
-description = "Friendly and fast tool for sending HTTP requests"
+description = "Minimal, multi-architecture OCI container image for xh, the friendly HTTP client"
 version = "0.26.2"
 
 upstream = "ducaale/xh"

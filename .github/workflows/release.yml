@@ -77,15 +77,28 @@ jobs:
       - name: Docker metadata
         id: docker_meta
         uses: docker/metadata-action@v6
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
         with:
           images: ${{ steps.image.outputs.name }}
           tags: |
             type=raw,value=${{ steps.meta.outputs.version }}
           labels: |
             org.opencontainers.image.title=${{ steps.meta.outputs.name }}
+            org.opencontainers.image.description=${{ steps.meta.outputs.description }}
             org.opencontainers.image.version=${{ steps.meta.outputs.version }}
-            org.opencontainers.image.source=https://github.com/${{ steps.meta.outputs.upstream }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/tree/${{ github.sha }}/images/${{ steps.tag.outputs.tool }}
+            org.opencontainers.image.licenses=${{ steps.meta.outputs.license }}
+          annotations: |
+            org.opencontainers.image.title=${{ steps.meta.outputs.name }}
+            org.opencontainers.image.description=${{ steps.meta.outputs.description }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/tree/${{ github.sha }}/images/${{ steps.tag.outputs.tool }}
+            org.opencontainers.image.licenses=${{ steps.meta.outputs.license }}
 
       - name: Build and push
         id: build
@@ -97,6 +110,7 @@ jobs:
           push: true
           tags: ${{ steps.docker_meta.outputs.tags }}
           labels: ${{ steps.docker_meta.outputs.labels }}
+          annotations: ${{ steps.docker_meta.outputs.annotations }}
           build-args: |
             VERSION=${{ steps.meta.outputs.version }}
             REVISION=${{ github.sha }}

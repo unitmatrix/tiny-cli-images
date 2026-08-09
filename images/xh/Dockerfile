@@ -57,10 +57,11 @@ ARG REVISION
 COPY --from=fetch /rootfs /
 
 LABEL org.opencontainers.image.title="xh"
-LABEL org.opencontainers.image.description="Minimal OCI image for xh"
+LABEL org.opencontainers.image.description="Minimal, multi-architecture OCI container image for xh, the friendly HTTP client"
 LABEL org.opencontainers.image.version="${VERSION}"
 LABEL org.opencontainers.image.revision="${REVISION}"
-LABEL org.opencontainers.image.source="https://github.com/ducaale/xh"
+LABEL org.opencontainers.image.source="https://github.com/unitmatrix/tiny-cli-images"
+LABEL org.opencontainers.image.documentation="https://github.com/unitmatrix/tiny-cli-images/tree/main/images/xh"
 LABEL org.opencontainers.image.licenses="MIT"
 
 USER 65532:65532

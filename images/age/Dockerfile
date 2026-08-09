@@ -56,10 +56,11 @@ ARG REVISION
 COPY --from=fetch /rootfs /
 
 LABEL org.opencontainers.image.title="age"
-LABEL org.opencontainers.image.description="Minimal OCI image for age"
+LABEL org.opencontainers.image.description="Minimal, multi-architecture OCI container image for age file encryption"
 LABEL org.opencontainers.image.version="${VERSION}"
 LABEL org.opencontainers.image.revision="${REVISION}"
-LABEL org.opencontainers.image.source="https://github.com/FiloSottile/age"
+LABEL org.opencontainers.image.source="https://github.com/unitmatrix/tiny-cli-images"
+LABEL org.opencontainers.image.documentation="https://github.com/unitmatrix/tiny-cli-images/tree/main/images/age"
 LABEL org.opencontainers.image.licenses="BSD-3-Clause"
 
 USER 65532:65532
