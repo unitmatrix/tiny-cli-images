@@ -13,7 +13,7 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
   packages: write
   id-token: write
   attestations: write
@@ -198,6 +198,14 @@ jobs:
             echo "\`${IMAGE}@${DIGEST}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Generate GitHub App token
+        id: release-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+
       - name: Publish GitHub release
         uses: actions/github-script@v9
         env:
@@ -212,6 +220,7 @@ jobs:
           DIGEST: ${{ steps.build.outputs.digest }}
           ATTESTATION_URL: ${{ steps.attest.outputs.attestation-url }}
         with:
+          github-token: ${{ steps.release-token.outputs.token }}
           script: |
             const tag = process.env.TAG;
             const tool = process.env.TOOL;
