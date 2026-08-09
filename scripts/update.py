@@ -218,7 +218,9 @@ def render_documentation(image: str, version: str) -> dict[Path, str]:
     image_readme = ROOT / "images" / image / "README.md"
     start_marker = f"<!-- tiny-cli-images:version:{image}:start -->"
     end_marker = f"<!-- tiny-cli-images:version:{image}:end -->"
-    version_pattern = re.compile(r"(?<![0-9.])[0-9]+\.[0-9]+\.[0-9]+(?![0-9.])")
+    version_pattern = re.compile(
+        r"(?<![0-9.])[0-9]+\.[0-9]+\.[0-9]+(?:-r[1-9][0-9]*)?(?![0-9.])"
+    )
     updates: dict[Path, str] = {}
     marked_paths: set[Path] = set()
 
