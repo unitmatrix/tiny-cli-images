@@ -143,6 +143,12 @@ Images are released independently from tags in this form:
 <tool>/v<version>
 ```
 
+The Release workflow can also be dispatched manually with an existing release
+tag. It builds the tagged source for traceability while reading package-page
+metadata and documentation from the current catalog, then recreates the image,
+attestations, signature, and GitHub Release without moving the tag. This is the
+recovery path for a deliberately deleted GHCR package or GitHub Release.
+
 A push to `main` whose commit subject matches `Update <tool> to <version>`,
 optionally followed by GitHub's squash-merge suffix ` (#<pull-request>)`,
 creates the corresponding release tag. For example:
