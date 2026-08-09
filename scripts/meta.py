@@ -41,6 +41,10 @@ def load_config(image: str) -> dict[str, Any]:
 
 
 def metadata(config: dict[str, Any]) -> dict[str, str]:
+    description = config.get("description")
+    if not isinstance(description, str) or not description or "\n" in description:
+        fail("manifest description must be a non-empty single-line string")
+
     version = config.get("version")
     if not isinstance(version, str):
         fail("manifest version must be a string")
@@ -56,10 +60,16 @@ def metadata(config: dict[str, Any]) -> dict[str, str]:
     if config.get("architectures") != list(ARCHITECTURES):
         fail("manifest must declare amd64 and arm64 in that order")
 
+    license_name = config.get("license")
+    if not isinstance(license_name, str) or not license_name or "\n" in license_name:
+        fail("manifest license must be a non-empty single-line string")
+
     values = {
         "name": config["name"],
+        "description": description,
         "version": version,
         "upstream": upstream,
+        "license": license_name,
     }
 
     platforms = config.get("platform")
