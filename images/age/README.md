@@ -48,12 +48,15 @@ docker run --rm \
 
 ## Pinning
 
-Each release publishes only its full upstream version tag, such as `1.3.1`.
+An upstream release publishes its full version tag, such as `1.3.1`.
 
 <!-- tiny-cli-images:version:age:end -->
 
-The image does not publish `latest` or shortened version tags. For immutable
-deployments, use the digest shown by the GitHub Release and release workflow:
+Normal release and image tags match the upstream version exactly. An exceptional
+recovery from a deleted immutable GitHub Release may use a packaging revision
+such as `<version>-r1`, without changing the upstream age version. The image
+does not publish `latest` or shortened version tags. For immutable deployments,
+use the digest shown by the GitHub Release and release workflow:
 
 ```text
 ghcr.io/unitmatrix/age@sha256:<digest>

@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag to rebuild, for example age/v1.3.1
+        description: Existing release tag, optionally ending in -rN
         required: true
         type: string
 
@@ -43,15 +43,25 @@ jobs:
 
           tag="$RELEASE_TAG"
 
-          if [[ ! "$tag" =~ ^([a-z0-9][a-z0-9-]*)/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+          if [[ ! "$tag" =~ ^([a-z0-9][a-z0-9-]*)/v([0-9]+\.[0-9]+\.[0-9]+)(-r([1-9][0-9]*))?$ ]]; then
             echo "Invalid release tag: $tag" >&2
-            echo "Expected format: <image>/v<major>.<minor>.<patch>" >&2
+            echo "Expected format: <image>/v<major>.<minor>.<patch>[-r<revision>]" >&2
             exit 1
           fi
 
+          tool="${BASH_REMATCH[1]}"
+          version="${BASH_REMATCH[2]}"
+          packaging_revision="${BASH_REMATCH[4]}"
+          image_version="$version"
+          if [[ -n "$packaging_revision" ]]; then
+            image_version="${image_version}-r${packaging_revision}"
+          fi
+
           echo "name=$tag" >> "$GITHUB_OUTPUT"
-          echo "tool=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
-          echo "version=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
+          echo "tool=$tool" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "image_version=$image_version" >> "$GITHUB_OUTPUT"
+          echo "packaging_revision=$packaging_revision" >> "$GITHUB_OUTPUT"
 
       - name: Checkout release tag
         uses: actions/checkout@v7
@@ -130,11 +140,11 @@ jobs:
         with:
           images: ${{ steps.image.outputs.name }}
           tags: |
-            type=raw,value=${{ steps.meta.outputs.version }}
+            type=raw,value=${{ steps.tag.outputs.image_version }}
           labels: |
             org.opencontainers.image.title=${{ steps.meta.outputs.name }}
             org.opencontainers.image.description=${{ steps.catalog_meta.outputs.description }}
-            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.version=${{ steps.tag.outputs.image_version }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ steps.release_revision.outputs.sha }}
             org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/tree/${{ steps.catalog_revision.outputs.sha }}/images/${{ steps.tag.outputs.tool }}
@@ -142,7 +152,7 @@ jobs:
           annotations: |
             org.opencontainers.image.title=${{ steps.meta.outputs.name }}
             org.opencontainers.image.description=${{ steps.catalog_meta.outputs.description }}
-            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.version=${{ steps.tag.outputs.image_version }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ steps.release_revision.outputs.sha }}
             org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/tree/${{ steps.catalog_revision.outputs.sha }}/images/${{ steps.tag.outputs.tool }}
@@ -213,6 +223,8 @@ jobs:
           TOOL: ${{ steps.meta.outputs.name }}
           DESCRIPTION: ${{ steps.catalog_meta.outputs.description }}
           VERSION: ${{ steps.meta.outputs.version }}
+          IMAGE_VERSION: ${{ steps.tag.outputs.image_version }}
+          PACKAGING_REVISION: ${{ steps.tag.outputs.packaging_revision }}
           DOCUMENTATION_REVISION: ${{ steps.catalog_revision.outputs.sha }}
           UPSTREAM: ${{ steps.meta.outputs.upstream }}
           IMAGE: ${{ steps.image.outputs.name }}
@@ -225,12 +237,14 @@ jobs:
             const tool = process.env.TOOL;
             const description = process.env.DESCRIPTION;
             const version = process.env.VERSION;
+            const imageVersion = process.env.IMAGE_VERSION;
+            const packagingRevision = process.env.PACKAGING_REVISION;
             const documentationRevision = process.env.DOCUMENTATION_REVISION;
             const upstream = process.env.UPSTREAM;
             const image = process.env.IMAGE;
             const digest = process.env.DIGEST;
             const attestationUrl = process.env.ATTESTATION_URL;
-            const imageTag = `${image}:${version}`;
+            const imageTag = `${image}:${imageVersion}`;
             const imageDigest = `${image}@${digest}`;
             const workflowUrl =
               `https://github.com/${context.repo.owner}/${context.repo.repo}` +
@@ -251,11 +265,17 @@ jobs:
               links.push(`[Attestation](${attestationUrl})`);
             }
 
+            const releaseSummary = packagingRevision
+              ? `This release packages ${tool} v${version} as packaging revision ` +
+                `\`r${packagingRevision}\` for \`linux/amd64\` and \`linux/arm64\`.`
+              : `This release packages ${tool} v${version} for ` +
+                "`linux/amd64` and `linux/arm64`.";
+
             const details = [
               startMarker,
               `${description}.`,
               "",
-              `This release packages ${tool} v${version} for \`linux/amd64\` and \`linux/arm64\`.`,
+              releaseSummary,
               "",
               `**Image:** \`${imageTag}\``,
               `**Digest:** \`${digest}\``,
@@ -287,7 +307,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 tag_name: tag,
-                name: `${tool} v${version} container image`,
+                name: `${tool} v${imageVersion} container image`,
                 body: details,
                 draft: false,
                 prerelease: false,
@@ -314,7 +334,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               release_id: release.id,
-              name: `${tool} v${version} container image`,
+              name: `${tool} v${imageVersion} container image`,
               body,
               draft: false,
               prerelease: release.prerelease,

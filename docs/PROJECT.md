@@ -140,14 +140,23 @@ separate where practical.
 Images are released independently from tags in this form:
 
 ```text
-<tool>/v<version>
+<tool>/v<upstream-version>[-r<packaging-revision>]
 ```
+
+Normal upstream releases use the exact upstream version in both the release tag
+and image tag. A packaging revision is an exceptional recovery mechanism used
+only when GitHub has permanently reserved the original tag after deletion of an
+immutable release. In that case, an explicitly numbered suffix is appended,
+for example `<tool>/v<upstream-version>-r1`. It does not change the upstream
+binary version or verified checksums.
 
 The Release workflow can also be dispatched manually with an existing release
 tag. It builds the tagged source for traceability while reading package-page
 metadata and documentation from the current catalog, then recreates the image,
 attestations, signature, and GitHub Release without moving the tag. This is the
-recovery path for a deliberately deleted GHCR package or GitHub Release.
+recovery path for a deliberately deleted GHCR package or mutable GitHub
+Release. A deleted immutable GitHub Release cannot reuse its tag; publish the
+next packaging revision instead.
 
 A push to `main` whose commit subject matches `Update <tool> to <version>`,
 optionally followed by GitHub's squash-merge suffix ` (#<pull-request>)`,
@@ -162,7 +171,8 @@ creates the corresponding release tag. For example:
 Other commit subjects do not create a tag. The Tag workflow can also be
 dispatched manually from the default branch with an explicit tag override;
 both automatic and manual tags must match an existing image and its committed
-manifest version. Existing tags are never moved.
+manifest version. Packaging revision tags are created only through this manual
+override for immutable-release recovery. Existing tags are never moved.
 
 <!-- tiny-cli-images:version:xh:start -->
 
@@ -174,14 +184,16 @@ ghcr.io/<owner>/xh:0.26.2
 
 <!-- tiny-cli-images:version:xh:end -->
 
-Only the full upstream version tag is published. Floating tags such as
-`latest` and shortened version tags such as `0.26` are not published. Users can
-also pin the image by its immutable OCI digest.
+A packaging revision such as `<tool>/v<upstream-version>-r1` instead publishes
+`ghcr.io/<owner>/<tool>:<upstream-version>-r1`. Floating tags such as `latest`
+and shortened version tags such as `0.26` are not published. Users can also pin
+the image by its immutable OCI digest.
 
 The release workflow must:
 
-1. Parse the tool and version from the tag.
-2. Verify that the tag version equals the committed manifest version.
+1. Parse the tool, upstream version, and optional packaging revision from the
+   tag.
+2. Verify that the upstream version equals the committed manifest version.
 3. Build and publish `linux/amd64` and `linux/arm64` as one OCI image.
 4. Publish SBOM and build provenance attestations.
 5. Sign the resulting digest using keyless OIDC signing.
