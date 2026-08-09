@@ -5,6 +5,13 @@ on:
     tags:
       - "*/v*"
 
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to rebuild, for example age/v1.3.1
+        required: true
+        type: string
+
 permissions:
   contents: write
   packages: write
@@ -14,6 +21,10 @@ permissions:
 env:
   REGISTRY: ghcr.io
 
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -22,27 +33,61 @@ jobs:
       digest: ${{ steps.build.outputs.digest }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Parse tag
+      - name: Resolve tag
         id: tag
         shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
 
-          tag="${GITHUB_REF_NAME}"
+          tag="$RELEASE_TAG"
 
-          tool="${tag%%/*}"
-          version="${tag#*/v}"
+          if [[ ! "$tag" =~ ^([a-z0-9][a-z0-9-]*)/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "Invalid release tag: $tag" >&2
+            echo "Expected format: <image>/v<major>.<minor>.<patch>" >&2
+            exit 1
+          fi
 
-          echo "tool=${tool}" >> "$GITHUB_OUTPUT"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "name=$tag" >> "$GITHUB_OUTPUT"
+          echo "tool=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          echo "version=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
 
-      - name: Read metadata
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ steps.tag.outputs.name }}
+          path: release
+          persist-credentials: false
+
+      - name: Resolve release revision
+        id: release_revision
+        shell: bash
+        working-directory: release
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Read release metadata
         id: meta
         run: |
-          python3 scripts/meta.py "${{ steps.tag.outputs.tool }}"
+          python3 release/scripts/meta.py "${{ steps.tag.outputs.tool }}"
+
+      - name: Checkout current catalog
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: catalog
+          persist-credentials: false
+
+      - name: Resolve catalog revision
+        id: catalog_revision
+        shell: bash
+        working-directory: catalog
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Read current catalog metadata
+        id: catalog_meta
+        run: |
+          python3 catalog/scripts/meta.py "${{ steps.tag.outputs.tool }}"
 
       - name: Verify release version
         shell: bash
@@ -50,6 +95,9 @@ jobs:
           test \
             "${{ steps.tag.outputs.version }}" = \
             "${{ steps.meta.outputs.version }}"
+          test \
+            "${{ steps.meta.outputs.name }}" = \
+            "${{ steps.catalog_meta.outputs.name }}"
 
       - name: Set image
         id: image
@@ -85,27 +133,27 @@ jobs:
             type=raw,value=${{ steps.meta.outputs.version }}
           labels: |
             org.opencontainers.image.title=${{ steps.meta.outputs.name }}
-            org.opencontainers.image.description=${{ steps.meta.outputs.description }}
+            org.opencontainers.image.description=${{ steps.catalog_meta.outputs.description }}
             org.opencontainers.image.version=${{ steps.meta.outputs.version }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/tree/${{ github.sha }}/images/${{ steps.tag.outputs.tool }}
-            org.opencontainers.image.licenses=${{ steps.meta.outputs.license }}
+            org.opencontainers.image.revision=${{ steps.release_revision.outputs.sha }}
+            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/tree/${{ steps.catalog_revision.outputs.sha }}/images/${{ steps.tag.outputs.tool }}
+            org.opencontainers.image.licenses=${{ steps.catalog_meta.outputs.license }}
           annotations: |
             org.opencontainers.image.title=${{ steps.meta.outputs.name }}
-            org.opencontainers.image.description=${{ steps.meta.outputs.description }}
+            org.opencontainers.image.description=${{ steps.catalog_meta.outputs.description }}
             org.opencontainers.image.version=${{ steps.meta.outputs.version }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/tree/${{ github.sha }}/images/${{ steps.tag.outputs.tool }}
-            org.opencontainers.image.licenses=${{ steps.meta.outputs.license }}
+            org.opencontainers.image.revision=${{ steps.release_revision.outputs.sha }}
+            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/tree/${{ steps.catalog_revision.outputs.sha }}/images/${{ steps.tag.outputs.tool }}
+            org.opencontainers.image.licenses=${{ steps.catalog_meta.outputs.license }}
 
       - name: Build and push
         id: build
         uses: docker/build-push-action@v7
         with:
-          context: .
-          file: images/${{ steps.tag.outputs.tool }}/Dockerfile
+          context: release
+          file: release/images/${{ steps.tag.outputs.tool }}/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.docker_meta.outputs.tags }}
@@ -113,7 +161,7 @@ jobs:
           annotations: ${{ steps.docker_meta.outputs.annotations }}
           build-args: |
             VERSION=${{ steps.meta.outputs.version }}
-            REVISION=${{ github.sha }}
+            REVISION=${{ steps.release_revision.outputs.sha }}
             SHA256_AMD64=${{ steps.meta.outputs.sha_amd64 }}
             SHA256_ARM64=${{ steps.meta.outputs.sha_arm64 }}
           cache-from: type=gha,scope=${{ steps.meta.outputs.name }}
@@ -153,17 +201,24 @@ jobs:
       - name: Publish GitHub release
         uses: actions/github-script@v9
         env:
+          TAG: ${{ steps.tag.outputs.name }}
           TOOL: ${{ steps.meta.outputs.name }}
+          DESCRIPTION: ${{ steps.catalog_meta.outputs.description }}
           VERSION: ${{ steps.meta.outputs.version }}
+          REVISION: ${{ steps.release_revision.outputs.sha }}
+          DOCUMENTATION_REVISION: ${{ steps.catalog_revision.outputs.sha }}
           UPSTREAM: ${{ steps.meta.outputs.upstream }}
           IMAGE: ${{ steps.image.outputs.name }}
           DIGEST: ${{ steps.build.outputs.digest }}
           ATTESTATION_URL: ${{ steps.attest.outputs.attestation-url }}
         with:
           script: |
-            const tag = context.ref.replace("refs/tags/", "");
+            const tag = process.env.TAG;
             const tool = process.env.TOOL;
+            const description = process.env.DESCRIPTION;
             const version = process.env.VERSION;
+            const revision = process.env.REVISION;
+            const documentationRevision = process.env.DOCUMENTATION_REVISION;
             const upstream = process.env.UPSTREAM;
             const image = process.env.IMAGE;
             const digest = process.env.DIGEST;
@@ -175,10 +230,14 @@ jobs:
               `/actions/runs/${context.runId}`;
             const upstreamUrl =
               `https://github.com/${upstream}/releases/tag/v${version}`;
+            const documentationUrl =
+              `https://github.com/${context.repo.owner}/${context.repo.repo}` +
+              `/tree/${documentationRevision}/images/${tool}`;
             const startMarker = "<!-- tiny-cli-images:container:start -->";
             const endMarker = "<!-- tiny-cli-images:container:end -->";
             const links = [
               `[Upstream](${upstreamUrl})`,
+              `[Documentation](${documentationUrl})`,
               `[Build](${workflowUrl})`,
             ];
             if (attestationUrl) {
@@ -187,7 +246,9 @@ jobs:
 
             const details = [
               startMarker,
-              `Minimal ${tool} v${version} image for \`linux/amd64\` and \`linux/arm64\`.`,
+              `${description}.`,
+              "",
+              `This release packages ${tool} v${version} for \`linux/amd64\` and \`linux/arm64\`.`,
               "",
               `**Image:** \`${imageTag}\``,
               `**Digest:** \`${digest}\``,
@@ -219,8 +280,8 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 tag_name: tag,
-                target_commitish: context.sha,
-                name: `${tool} v${version}`,
+                target_commitish: revision,
+                name: `${tool} v${version} container image`,
                 body: details,
                 draft: false,
                 prerelease: false,
@@ -247,7 +308,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               release_id: release.id,
-              name: release.name || `${tool} v${version}`,
+              name: `${tool} v${version} container image`,
               body,
               draft: false,
               prerelease: release.prerelease,
