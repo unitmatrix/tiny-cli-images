@@ -213,7 +213,6 @@ jobs:
           TOOL: ${{ steps.meta.outputs.name }}
           DESCRIPTION: ${{ steps.catalog_meta.outputs.description }}
           VERSION: ${{ steps.meta.outputs.version }}
-          REVISION: ${{ steps.release_revision.outputs.sha }}
           DOCUMENTATION_REVISION: ${{ steps.catalog_revision.outputs.sha }}
           UPSTREAM: ${{ steps.meta.outputs.upstream }}
           IMAGE: ${{ steps.image.outputs.name }}
@@ -226,7 +225,6 @@ jobs:
             const tool = process.env.TOOL;
             const description = process.env.DESCRIPTION;
             const version = process.env.VERSION;
-            const revision = process.env.REVISION;
             const documentationRevision = process.env.DOCUMENTATION_REVISION;
             const upstream = process.env.UPSTREAM;
             const image = process.env.IMAGE;
@@ -289,7 +287,6 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 tag_name: tag,
-                target_commitish: revision,
                 name: `${tool} v${version} container image`,
                 body: details,
                 draft: false,
