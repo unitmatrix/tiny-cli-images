@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag to create, for example age/v1.3.1
+        description: Release tag to create, optionally ending in -rN
         required: true
         type: string
 
@@ -60,9 +60,9 @@ jobs:
             exit 0
           fi
 
-          if [[ ! "$tag" =~ ^([a-z0-9][a-z0-9-]*)/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+          if [[ ! "$tag" =~ ^([a-z0-9][a-z0-9-]*)/v([0-9]+\.[0-9]+\.[0-9]+)(-r([1-9][0-9]*))?$ ]]; then
             echo "Invalid release tag: $tag" >&2
-            echo "Expected format: <image>/v<major>.<minor>.<patch>" >&2
+            echo "Expected format: <image>/v<major>.<minor>.<patch>[-r<revision>]" >&2
             exit 1
           fi
 
