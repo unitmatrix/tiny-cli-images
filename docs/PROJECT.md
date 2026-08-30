@@ -164,7 +164,7 @@ creates the corresponding release tag. For example:
 
 <!-- tiny-cli-images:version:age:start -->
 
-`Update age to 1.3.1` creates `age/v1.3.1`.
+`Update age to 1.3.2` creates `age/v1.3.2`.
 
 <!-- tiny-cli-images:version:age:end -->
 

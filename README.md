@@ -33,7 +33,7 @@ in a minimal, non-root container without a shell or package manager.
 <!-- tiny-cli-images:version:age:start -->
 
 ```sh
-docker run --rm ghcr.io/unitmatrix/age:1.3.1-r1 --version
+docker run --rm ghcr.io/unitmatrix/age:1.3.2 --version
 ```
 
 <!-- tiny-cli-images:version:age:end -->
