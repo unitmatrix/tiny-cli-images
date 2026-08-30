@@ -18,7 +18,7 @@ Use the update script with a stable upstream release version:
 <!-- tiny-cli-images:version:age:start -->
 
 ```sh
-python3 scripts/update.py age 1.3.1
+python3 scripts/update.py age 1.3.2
 ```
 
 <!-- tiny-cli-images:version:age:end -->

@@ -13,7 +13,7 @@ Encrypt a file for a recipient:
 
 ```sh
 docker run --rm --interactive \
-  ghcr.io/unitmatrix/age:1.3.1-r1 \
+  ghcr.io/unitmatrix/age:1.3.2 \
   --encrypt \
   --recipient age1... \
   < document.txt \
@@ -25,7 +25,7 @@ Decrypt with an identity mounted under `/work`:
 ```sh
 docker run --rm --interactive \
   --volume "$PWD:/work:ro" \
-  ghcr.io/unitmatrix/age:1.3.1-r1 \
+  ghcr.io/unitmatrix/age:1.3.2 \
   --decrypt \
   --identity /work/key.txt \
   < document.txt.age
@@ -38,7 +38,7 @@ binaries are also available at the filesystem root. For example:
 ```sh
 docker run --rm \
   --entrypoint /age-keygen \
-  ghcr.io/unitmatrix/age:1.3.1-r1
+  ghcr.io/unitmatrix/age:1.3.2
 ```
 
 ## Platforms
@@ -48,7 +48,7 @@ docker run --rm \
 
 ## Pinning
 
-An upstream release publishes its full version tag, such as `1.3.1`.
+An upstream release publishes its full version tag, such as `1.3.2`.
 
 <!-- tiny-cli-images:version:age:end -->
 
