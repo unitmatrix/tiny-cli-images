@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM alpine:3.24.1 AS fetch
+FROM alpine:3.24.2 AS fetch
 
 ARG VERSION
 ARG TARGETARCH
