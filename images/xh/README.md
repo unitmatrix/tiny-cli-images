@@ -10,7 +10,7 @@ certificates and is published as `ghcr.io/unitmatrix/xh`.
 <!-- tiny-cli-images:version:xh:start -->
 
 ```sh
-docker run --rm ghcr.io/unitmatrix/xh:0.26.2-r1 https://example.com
+docker run --rm ghcr.io/unitmatrix/xh:0.26.3 https://example.com
 ```
 
 Mount files under `/work`, which is the image's working directory:
@@ -18,7 +18,7 @@ Mount files under `/work`, which is the image's working directory:
 ```sh
 docker run --rm \
   --volume "$PWD:/work" \
-  ghcr.io/unitmatrix/xh:0.26.2-r1 \
+  ghcr.io/unitmatrix/xh:0.26.3 \
   GET https://example.com
 ```
 
@@ -32,7 +32,7 @@ manager, and its entrypoint is `/xh`.
 
 ## Pinning
 
-An upstream release publishes its full version tag, such as `0.26.2`.
+An upstream release publishes its full version tag, such as `0.26.3`.
 
 <!-- tiny-cli-images:version:xh:end -->
 

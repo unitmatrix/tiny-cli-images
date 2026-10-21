@@ -26,7 +26,7 @@ python3 scripts/update.py age 1.3.2
 <!-- tiny-cli-images:version:xh:start -->
 
 ```sh
-python3 scripts/update.py xh 0.26.2
+python3 scripts/update.py xh 0.26.3
 ```
 
 <!-- tiny-cli-images:version:xh:end -->
