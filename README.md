@@ -49,7 +49,7 @@ minimal, non-root container with CA certificates for HTTPS requests.
 <!-- tiny-cli-images:version:xh:start -->
 
 ```sh
-docker run --rm ghcr.io/unitmatrix/xh:0.26.2-r1 \
+docker run --rm ghcr.io/unitmatrix/xh:0.26.3 \
   https://example.com
 ```
 

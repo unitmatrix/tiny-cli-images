@@ -176,10 +176,10 @@ override for immutable-release recovery. Existing tags are never moved.
 
 <!-- tiny-cli-images:version:xh:start -->
 
-For example, `xh/v0.26.2-r1` publishes:
+For example, `xh/v0.26.3` publishes:
 
 ```text
-ghcr.io/<owner>/xh:0.26.2-r1
+ghcr.io/<owner>/xh:0.26.3
 ```
 
 <!-- tiny-cli-images:version:xh:end -->
